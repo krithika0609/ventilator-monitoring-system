@@ -2,6 +2,7 @@ import random
 import time
 import datetime
 import json
+import sys
 
 # Configuration dictionary storing normal ranges, abnormal ranges, and thresholds for all vitals.
 # This structure allows for easy modification of ranges and thresholds.
@@ -112,16 +113,19 @@ def get_status(vital_name, value):
         else:
             return "NORMAL", normal_range[1]
 
-def generate_reading():
+def generate_reading(force_spo2_low=False):
     """
     Randomly selects one of the six vitals, generates a realistic value,
     determines its status and threshold, and formats the output into a dictionary.
+    Supports forcing SpO2 to low levels for alert testing.
     """
-    # Randomly select one of the six vitals to emit
-    vital_name = random.choice(list(VITALS_CONFIG.keys()))
-    
-    # Generate value
-    value = generate_vital(vital_name)
+    if force_spo2_low:
+        vital_name = "SpO2"
+        # Force a value below 90, e.g. between 80 and 89
+        value = random.randint(80, 89)
+    else:
+        vital_name = random.choice(list(VITALS_CONFIG.keys()))
+        value = generate_vital(vital_name)
     
     # Determine status and threshold
     status, threshold = get_status(vital_name, value)
@@ -137,15 +141,95 @@ def generate_reading():
         "status": status
     }
 
+def check_alert(reading=None, vital=None, value=None, timestamp=None):
+    """
+    Reusable alert engine function that checks for server-side threshold breaches.
+    Can accept a full reading dictionary, or individual parameters.
+    
+    Detects breaches for:
+      - SpO2 < 90
+      - HR > 120 or HR < 50
+      - RR > 30
+      - FiO2 > 60
+      - PEEP > 15
+      - Tidal Volume < 300
+      
+    Returns an alert object (dict) if breached, otherwise None.
+    """
+    if reading is not None:
+        vital = reading.get("vital")
+        value = reading.get("value")
+        timestamp = reading.get("timestamp")
+        
+    if vital is None or value is None:
+        return None
+        
+    if timestamp is None:
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        
+    breached = False
+    message = ""
+    
+    if vital == "SpO2" and value < 90:
+        breached = True
+        message = "Critical oxygen level detected"
+    elif vital == "HR":
+        if value > 120:
+            breached = True
+            message = "Critical high heart rate detected"
+        elif value < 50:
+            breached = True
+            message = "Critical low heart rate detected"
+    elif vital == "RR" and value > 30:
+        breached = True
+        message = "Critical high respiratory rate detected"
+    elif vital == "FiO2" and value > 60:
+        breached = True
+        message = "Critical high oxygen concentration detected"
+    elif vital == "PEEP" and value > 15:
+        breached = True
+        message = "Critical high positive end-expiratory pressure detected"
+    elif vital == "Tidal Volume" and value < 300:
+        breached = True
+        message = "Critical low tidal volume detected"
+        
+    if breached:
+        return {
+            "type": "alert",
+            "vital": vital,
+            "value": value,
+            "timestamp": timestamp,
+            "message": message
+        }
+    return None
+
 def main():
     """
-    Main execution loop. Generates and prints vital readings in JSON format
-    every 2 seconds continuously.
+    Main execution loop. Generates and prints vital readings in JSON format.
+    If an alert occurs, checks it and prints the alert JSON to simulate WebSocket integration.
+    Supports a test mode that periodically forces SpO2 below 90.
     """
+    # Detect test mode from command line arguments
+    test_mode = "--test" in sys.argv or "-t" in sys.argv
+    
+    if test_mode:
+        print("[TEST MODE] Active: SpO2 alerts will be forced periodically.")
+        
     try:
+        iteration = 0
         while True:
-            reading = generate_reading()
+            # Force SpO2 low every 3rd iteration in test mode to show alerts
+            force_spo2_low = test_mode and (iteration % 3 == 0)
+            
+            reading = generate_reading(force_spo2_low=force_spo2_low)
             print(json.dumps(reading))
+            
+            # Run threshold checking and print alert JSON if breached
+            alert = check_alert(reading)
+            if alert:
+                print(json.dumps(alert))
+                
+            iteration += 1
             time.sleep(2)
     except KeyboardInterrupt:
         pass
