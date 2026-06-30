@@ -14,8 +14,8 @@ emit_alert_event(alert)   -> dict
 Design notes
 ------------
 * Uses only Python standard-library modules (datetime).
-* Each vital's rules live in ALERT_RULES so adding / changing a
-  threshold never requires touching evaluation logic.
+* All threshold values are imported from backend.config — do NOT
+  hardcode numeric limits here.
 * Severity levels: CRITICAL > ALARM.
 * Ready to be imported by a FastAPI router without modification.
 """
@@ -23,77 +23,96 @@ Design notes
 import datetime
 from typing import Any
 
+# Import all threshold constants from the central config
+from backend.config import (
+    THRESHOLDS,
+    SEVERITY_ALARM,
+    SEVERITY_CRITICAL,
+    VITAL_SPO2,
+    VITAL_HR,
+    VITAL_RR,
+    VITAL_FIO2,
+    VITAL_PEEP,
+    VITAL_TIDAL_VOLUME,
+)
+
 # ---------------------------------------------------------------------------
 # Threshold rules
 # ---------------------------------------------------------------------------
 # Each entry maps a vital name to a list of rule dictionaries.
 # Rule fields:
-#   condition  : callable(value) -> bool   – True when the threshold is breached
+#   condition  : callable(value) -> bool   - True when the threshold is breached
 #   threshold  : human-readable threshold string shown in the alert
-#   severity   : "CRITICAL" | "ALARM"
+#   severity   : SEVERITY_CRITICAL | SEVERITY_ALARM  (from config)
 #   message    : short clinical description of the breach
 #
 # Rules are evaluated in order; ALL matching rules produce an alert object.
+# Numeric limits are sourced from config.THRESHOLDS — never hardcoded here.
 # ---------------------------------------------------------------------------
 
+def _th(vital: str, key: str) -> int:
+    """Convenience accessor for a threshold value from config.THRESHOLDS."""
+    return THRESHOLDS[vital][key]  # type: ignore[return-value]
+
+
 ALERT_RULES: dict[str, list[dict[str, Any]]] = {
-    "SpO2": [
+    VITAL_SPO2: [
         {
-            "condition": lambda v: v < 90,
-            "threshold": "<90",
-            "severity": "CRITICAL",
+            "condition": lambda v: v < _th(VITAL_SPO2, "critical_low"),
+            "threshold": f"<{_th(VITAL_SPO2, 'critical_low')}",
+            "severity": SEVERITY_CRITICAL,
             "message": "Critical oxygen level detected",
         },
         {
-            "condition": lambda v: 90 <= v < 95,
-            "threshold": "<95",
-            "severity": "ALARM",
+            "condition": lambda v: _th(VITAL_SPO2, "critical_low") <= v < _th(VITAL_SPO2, "alarm_low"),
+            "threshold": f"<{_th(VITAL_SPO2, 'alarm_low')}",
+            "severity": SEVERITY_ALARM,
             "message": "Low oxygen saturation detected",
         },
     ],
-    "HR": [
+    VITAL_HR: [
         {
-            "condition": lambda v: v > 120,
-            "threshold": ">120",
-            "severity": "CRITICAL",
+            "condition": lambda v: v > _th(VITAL_HR, "critical_high"),
+            "threshold": f">{_th(VITAL_HR, 'critical_high')}",
+            "severity": SEVERITY_CRITICAL,
             "message": "Critical high heart rate detected",
         },
         {
-            "condition": lambda v: v < 50,
-            "threshold": "<50",
-            "severity": "CRITICAL",
+            "condition": lambda v: v < _th(VITAL_HR, "critical_low"),
+            "threshold": f"<{_th(VITAL_HR, 'critical_low')}",
+            "severity": SEVERITY_CRITICAL,
             "message": "Critical low heart rate detected",
         },
     ],
-    "RR": [
+    VITAL_RR: [
         {
-            "condition": lambda v: v > 30,
-            "threshold": ">30",
-            "severity": "CRITICAL",
+            "condition": lambda v: v > _th(VITAL_RR, "critical_high"),
+            "threshold": f">{_th(VITAL_RR, 'critical_high')}",
+            "severity": SEVERITY_CRITICAL,
             "message": "Critical high respiratory rate detected",
         },
     ],
-    "FiO2": [
+    VITAL_FIO2: [
         {
-            "condition": lambda v: v > 60,
-            "threshold": ">60",
-            "severity": "CRITICAL",
+            "condition": lambda v: v > _th(VITAL_FIO2, "critical_high"),
+            "threshold": f">{_th(VITAL_FIO2, 'critical_high')}",
+            "severity": SEVERITY_CRITICAL,
             "message": "Critical high oxygen concentration detected",
         },
     ],
-    "PEEP": [
+    VITAL_PEEP: [
         {
-            "condition": lambda v: v > 15,
-            "threshold": ">15",
-            "severity": "CRITICAL",
+            "condition": lambda v: v > _th(VITAL_PEEP, "critical_high"),
+            "threshold": f">{_th(VITAL_PEEP, 'critical_high')}",
+            "severity": SEVERITY_CRITICAL,
             "message": "Critical high positive end-expiratory pressure detected",
         },
     ],
-    "Tidal Volume": [
+    VITAL_TIDAL_VOLUME: [
         {
-            "condition": lambda v: v < 300,
-            "threshold": "<300",
-            "severity": "CRITICAL",
+            "condition": lambda v: v < _th(VITAL_TIDAL_VOLUME, "critical_low"),
+            "threshold": f"<{_th(VITAL_TIDAL_VOLUME, 'critical_low')}",
+            "severity": SEVERITY_CRITICAL,
             "message": "Critical low tidal volume detected",
         },
     ],

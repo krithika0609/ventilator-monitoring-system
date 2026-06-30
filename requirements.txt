@@ -1,9 +1,32 @@
-# VentAlert – Python dependencies
-# All backend modules use only the Python standard library.
-# No third-party packages are required to run alert_engine or weaning_engine.
+# VentAlert – Python Dependencies
+# =================================
+# Install with:  pip install -r requirements.txt
+#
+# Python version: 3.11+
 
-# ── Future FastAPI integration ───────────────────────────────────────────────
-# Uncomment the lines below when adding the API layer:
-# fastapi>=0.111.0
-# uvicorn[standard]>=0.29.0
-# websockets>=12.0
+# ---------------------------------------------------------------------------
+# Core web framework + ASGI server
+# ---------------------------------------------------------------------------
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+
+# ---------------------------------------------------------------------------
+# WebSocket support
+# ---------------------------------------------------------------------------
+websockets>=12.0
+
+# ---------------------------------------------------------------------------
+# Data validation (used by FastAPI internally)
+# ---------------------------------------------------------------------------
+pydantic>=2.0.0
+
+# ---------------------------------------------------------------------------
+# Environment variable management
+# ---------------------------------------------------------------------------
+python-dotenv>=1.0.0
+
+# ---------------------------------------------------------------------------
+# Future: AI / LLM integration (uncomment when Phase 2 begins)
+# ---------------------------------------------------------------------------
+# openai>=1.35.0
+# anthropic>=0.28.0

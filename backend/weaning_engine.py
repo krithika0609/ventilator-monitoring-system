@@ -53,6 +53,13 @@ Example (do NOT add without Dr. Mugesh's approval)::
 
 from typing import Any
 
+# Import readiness score thresholds from central config
+# To adjust READY / BORDERLINE percentages, edit backend/config.py only.
+from backend.config import (
+    WEANING_READY_THRESHOLD,
+    WEANING_BORDERLINE_THRESHOLD,
+)
+
 # ---------------------------------------------------------------------------
 # Clinical criteria configuration
 # ---------------------------------------------------------------------------
@@ -67,15 +74,9 @@ WEANING_CRITERIA: dict[str, dict[str, Any]] = {
     # ------------------------------------------------------------------ #
 }
 
-# Readiness thresholds (percentage of maximum possible score)
-# These may also be updated in consultation with the clinical team.
-READINESS_THRESHOLDS: dict[str, int] = {
-    # Minimum score percentage to be considered READY
-    "READY": 80,
-    # Minimum score percentage to be considered BORDERLINE
-    "BORDERLINE": 50,
-    # Below BORDERLINE -> NOT_READY
-}
+# Readiness thresholds are imported from backend.config -- do not redefine here.
+# WEANING_READY_THRESHOLD      = 80  (percentage)  -> config.py
+# WEANING_BORDERLINE_THRESHOLD = 50  (percentage)  -> config.py
 
 
 # ---------------------------------------------------------------------------
@@ -193,9 +194,9 @@ def _determine_readiness_status(score: int, max_score: int) -> str:
 
     percentage = (score / max_score) * 100
 
-    if percentage >= READINESS_THRESHOLDS["READY"]:
+    if percentage >= WEANING_READY_THRESHOLD:
         return "READY"
-    if percentage >= READINESS_THRESHOLDS["BORDERLINE"]:
+    if percentage >= WEANING_BORDERLINE_THRESHOLD:
         return "BORDERLINE"
     return "NOT_READY"
 
