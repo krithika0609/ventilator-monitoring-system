@@ -42,3 +42,86 @@ Execute the script using any Python 3 environment:
 ```bash
 python simulator.py
 ```
+
+Enable test mode (forces periodic SpO2 alerts):
+
+```bash
+python simulator.py --test
+```
+
+---
+
+## Backend – `backend/` Package
+
+### Structure
+
+```
+ventilator-monitoring-system/
+│
+├── simulator.py              # Real-time vitals generator (do not modify)
+│
+├── backend/
+│   ├── __init__.py           # Package descriptor
+│   ├── alert_engine.py       # Threshold checking + alert event emission
+│   └── weaning_engine.py     # Weaning readiness scoring framework
+│
+├── README.md
+└── requirements.txt
+```
+
+### `alert_engine` – Threshold Alerts
+
+```python
+from backend.alert_engine import check_thresholds, emit_alert_event
+
+vitals = {
+    "SpO2": 87, "HR": 128, "RR": 18,
+    "FiO2": 35, "PEEP": 8, "Tidal Volume": 520,
+}
+
+alerts = check_thresholds(vitals)
+# Returns a list of alert dicts – one per breached threshold
+
+for alert in alerts:
+    event = emit_alert_event(alert)
+    # {"event": "alert", "data": { ... alert object ... }}
+```
+
+Each alert object schema:
+
+```json
+{
+  "type"      : "alert",
+  "vital"     : "SpO2",
+  "value"     : 87,
+  "threshold" : "<90",
+  "severity"  : "CRITICAL",
+  "timestamp" : "2026-06-26T18:30:00",
+  "message"   : "Critical oxygen level detected"
+}
+```
+
+### `weaning_engine` – Readiness Scoring
+
+```python
+from backend.weaning_engine import calculate_weaning_score
+
+score_report = calculate_weaning_score(vitals)
+# {
+#   "score"            : 0,
+#   "criteria_met"     : [],
+#   "criteria_not_met" : [],
+#   "readiness_status" : "PENDING_CLINICAL_APPROVAL"
+# }
+```
+
+> **⚠ Clinical criteria pending**  
+> `WEANING_CRITERIA` in `weaning_engine.py` is empty until Dr. Mugesh's
+> approved clinical thresholds are inserted. The scoring engine is fully
+> functional once criteria are added.
+
+### Dependencies
+
+No third-party packages required. The backend uses Python standard
+library only (`datetime`). See `requirements.txt` for the optional
+FastAPI/uvicorn lines needed when the REST + WebSocket layer is added.
